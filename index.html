@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Case Study - Roman Numeral Converter</title>
+  <link href="https://fonts.googleapis.com/css?family=Lato:400,700" rel="stylesheet"><link rel="stylesheet" href="./style.css">
+
+</head>
+<body>
+
+<div id="converter">
+  <div class="converter-container" v-cloak>
+    <navigation-component v-bind:options="options"
+                          v-bind:active="active"
+                          v-on:state-change="onStateChange">
+    </navigation-component>
+    <converter-component v-bind:title="title"
+                         v-bind:label="label"
+                         v-bind:result="result"
+                         v-model="inputValue" v-on:keypress="filterCharacters($event)">
+    </converter-component>
+  </div>
+</div>
+
+<script src='https://unpkg.com/vue@3'></script>
+<script>
+  const KEYS = {
+    number: 'NUMBER',
+    roman: 'ROMAN NUMERAL'
+  };
+
+  let app = Vue.createApp({
+    data() {
+      return {
+        active: KEYS.number,
+        options: [
+          { id: KEYS.number, label: 'NUMBER -> ROMAN' },
+          { id: KEYS.roman, label: 'ROMAN -> NUMBER' }
+        ],
+        inputValue: 3999,
+        ROMAN_NUMERALS: {
+          1000: 'M',
+          900: 'CM',
+          500: 'D',
+          400: 'CD',
+          100: 'C',
+          90: 'XC',
+          50: 'L',
+          40: 'XL',
+          10: 'X',
+          9: 'IX',
+          5: 'V',
+          4: 'IV',
+          1: 'I'
+        }
+      }
+    },
+
+    computed: {
+      title: function() {
+        const inactive = this.options.find(option => option.id !== this.active);
+        return `Convert a ${this.active.toLowerCase()} to a ${inactive.id.toLowerCase()}`;
+      },
+      label: function() {
+        return this.active[0] + this.active.substr(1).toLowerCase();
+      },
+      result: function() {
+        const convertToRoman = (value) => {
+          const MAX_VALUE = 4000
+          let romanized = "";
+          if (value % 1 === 0 && value < MAX_VALUE) {
+            const decimalKeys = Object.keys(this.ROMAN_NUMERALS).reverse();
+            decimalKeys.forEach(key => {
+              while (parseInt(key) <= value){
+                romanized += this.ROMAN_NUMERALS[key];
+                value -= parseInt(key);
+              }
+            })
+          }
+          return romanized || '😐';
+        };
+
+        const convertToNumber = (value) => {
+          let result = 0;
+          const findEntry = (numeral) => parseInt(Object.entries(this.ROMAN_NUMERALS).find(entry => entry[1] === numeral));
+
+          value.split('').forEach((numeral, index, arr) => {
+            const entry = findEntry(numeral);
+            const nextEntry = findEntry(arr[index + 1]);
+            if (nextEntry > entry) {
+          	  result += nextEntry - entry;
+              arr.splice(index + 1, 1);
+            } else {
+          	  result += entry;
+            }
+          });
+          return result && convertToRoman(result) === value ? result : '😐';
+        };
+        return this.active === KEYS.number ? convertToRoman(this.inputValue) : convertToNumber(this.inputValue);
+      }
+    },
+
+    methods: {
+      onStateChange: function(id) {
+        this.inputValue = this.result !== '😐' ? this.result : '';
+        this.active = id;
+      },
+      filterCharacters: function(e) {
+        let char = String.fromCharCode(e.keyCode);
+        if(this.active === KEYS.number){
+          if (/^[0-9]+$/.test(char)) return true;
+          else e.preventDefault();
+        }
+        else {
+          if (/^[MDCLXVImdclxvi]+$/.test(char)) return true;
+          else e.preventDefault();
+        }
+      }
+    }
+  });
+
+  app.component('navigation-component', {
+    props: ['options', 'active'],
+    template: `<div class="converter-switch">
+                <ul>
+                  <li v-for="option in options" v-on:click="$emit('state-change', option.id)" v-bind:class="{ active: option.id === active }">
+                    {{ option.label }}
+                  </li>
+                </ul>
+              </div>`
+  });
+
+  app.component('converter-component', {
+    props: ['title', 'result', 'modelValue'],
+    emits: ['update:modelValue'],
+    template: `<div>
+                <h2>{{ title }}</h2><br>
+                <input v-bind:value="modelValue" v-on:input="$emit('update:modelValue', $event.target.value.toUpperCase())">
+                <h1>↓</h1>
+                <p>{{ result }}</p>
+              </div>`
+  });
+
+  app.mount('#converter')
+</script>
+
+</body>
+</html>
